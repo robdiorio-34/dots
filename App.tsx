@@ -1,10 +1,143 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, StatusBar } from 'react-native';
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import WorkoutCalendar from './src/components/WorkoutCalendar';
+
+type RootStackParamList = {
+  Test: undefined;
+  Home: undefined;
+};
+
+type TestScreenProps = NativeStackScreenProps<RootStackParamList, 'Test'>;
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+function TestScreen({ navigation }: TestScreenProps) {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Test Screen working</Text>
+      <TouchableOpacity 
+        style={styles.button}
+        onPress={() => navigation.navigate('Home')}
+      >
+        <Text style={styles.buttonText}>Go to Home Screen</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function HomeScreen() {
+  const [selectedDate, setSelectedDate] = useState<string>('');
+
+  const handleDayPress = (date: string) => {
+    setSelectedDate(date);
+  };
+
+  return (
+    <ScrollView style={styles.scrollContainer}>
+      <View style={styles.container}>
+        <WorkoutCalendar 
+          onDayPress={handleDayPress}
+          streak={6}
+          restDays={0}
+        />
+        <View style={styles.workoutButtonsContainer}>
+          <TouchableOpacity style={[styles.workoutButton, { backgroundColor: '#2C2C2E' }]}>
+            <Text style={styles.workoutButtonText}>Run</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.workoutButton, { backgroundColor: '#2C2C2E' }]}>
+            <Text style={styles.workoutButtonText}>Lift</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.workoutButton, { backgroundColor: '#2C2C2E' }]}>
+            <Text style={styles.workoutButtonText}>Soccer</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
 
 export default function App() {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Test</Text>
-    </View>
+    <NavigationContainer theme={DarkTheme}>
+      <StatusBar barStyle="light-content" />
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#000000',
+          },
+          headerTintColor: '#FFFFFF',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      >
+        <Stack.Screen 
+          name="Test" 
+          component={TestScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen 
+          name="Home" 
+          component={HomeScreen}
+          options={{
+            title: 'Calendar',
+            headerShadowVisible: false,
+          }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
-} 
+}
+
+const styles = StyleSheet.create({
+  scrollContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+    padding: 0,
+  },
+  text: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#FFFFFF',
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  workoutButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    backgroundColor: '#000000',
+  },
+  workoutButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  workoutButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+}); 
