@@ -1,0 +1,37 @@
+{
+  "name": "fitness-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-navigation/native": "^6.1.9",
+    "@react-navigation/native-stack": "^6.9.17",
+    "@reduxjs/toolkit": "^2.1.0",
+    "expo": "~53.0.0",
+    "expo-status-bar": "~2.2.3",
+    "fresh": "^0.5.2",
+    "metro": "^0.82.0",
+    "metro-core": "~0.80.0",
+    "react": "19.0.0",
+    "react-native": "0.79.1",
+    "react-native-calendars": "^1.1303.0",
+    "react-native-paper": "^5.12.1",
+    "react-native-safe-area-context": "5.3.0",
+    "react-native-screens": "~4.10.0",
+    "react-redux": "^9.1.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@expo/ngrok": "^4.1.0",
+    "@types/react": "~19.0.10",
+    "babel-plugin-module-resolver": "^5.0.0",
+    "babel-preset-expo": "~13.0.0",
+    "typescript": "^5.1.3"
+  }
+}
