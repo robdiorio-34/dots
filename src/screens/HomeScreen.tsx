@@ -1,119 +1,198 @@
-import React from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
-import { Calendar } from 'react-native-calendars';
-import { useSelector, useDispatch } from 'react-redux';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { useSelector } from 'react-redux';
 import { Text, FAB } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { RootState } from '../store';
-import { WorkoutType } from '../store/workoutsSlice';
-
-interface MarkedDate {
-  dots: Array<{ color: string }>;
-}
+import WorkoutCalendar from '../components/WorkoutCalendar';
+import stravaService from '../services/stravaService';
+import hevyService from '../services/hevyService';
+import { API_CONFIG, hasStravaDirectAccess } from '../config/api';
 
 const HomeScreen = () => {
   const [isLoading, setIsLoading] = React.useState(true);
+  const [stravaConnected, setStravaConnected] = useState(false);
+  const [hevyConnected, setHevyConnected] = useState(false);
+  const [stravaMethod, setStravaMethod] = useState<'direct' | 'oauth' | 'none'>('none');
   const workouts = useSelector((state: RootState) => state.workouts.workouts);
   const streak = useSelector((state: RootState) => state.workouts.streak);
   const restDays = useSelector((state: RootState) => state.workouts.restDays);
 
   React.useEffect(() => {
+    checkConnections();
     // Simulate data loading
     setTimeout(() => {
       setIsLoading(false);
     }, 500);
   }, []);
 
-  // Transform workouts into calendar marked dates
-  const markedDates = workouts.reduce<Record<string, MarkedDate>>((acc, workout) => {
-    const existingDate = acc[workout.date] || { dots: [] };
-    const dotColor = 
-      workout.type === 'running' ? '#ff0000' :
-      workout.type === 'lifting' ? '#00ff00' :
-      '#0000ff'; // soccer
+  const checkConnections = async () => {
+    try {
+      // Check if API keys are configured
+      const stravaConfigured = API_CONFIG.STRAVA.CLIENT_ID !== 'YOUR_STRAVA_CLIENT_ID';
+      const hevyConfigured = API_CONFIG.HEVY.API_KEY !== 'YOUR_HEVY_API_KEY';
+      
+      setHevyConnected(hevyConfigured);
+      
+      // Check Strava connection method
+      if (hasStravaDirectAccess()) {
+        setStravaMethod('direct');
+        setStravaConnected(true);
+      } else if (stravaConfigured) {
+        setStravaMethod('oauth');
+        setStravaConnected(true);
+      } else {
+        setStravaMethod('none');
+        setStravaConnected(false);
+      }
+    } catch (error) {
+      console.error('Error checking connections:', error);
+    }
+  };
 
-    return {
-      ...acc,
-      [workout.date]: {
-        ...existingDate,
-        dots: [...existingDate.dots, { color: dotColor }],
-      },
-    };
-  }, {});
+  const handleDayPress = (date: string) => {
+    console.log('Day pressed:', date);
+    // TODO: Show workout details for this date
+  };
+
+  const getStravaStatusText = () => {
+    if (stravaMethod === 'direct') {
+      return 'Strava: Direct Access';
+    } else if (stravaMethod === 'oauth') {
+      return `Strava: ${stravaConnected ? 'OAuth Connected' : 'OAuth Not Connected'}`;
+    } else {
+      return 'Strava: Not Configured';
+    }
+  };
+
+  const getStravaStatusColor = () => {
+    if (stravaMethod === 'direct' || (stravaMethod === 'oauth' && stravaConnected)) {
+      return '#4CAF50';
+    } else {
+      return '#FF3B30';
+    }
+  };
 
   if (isLoading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" />
-        <Text style={{ marginTop: 10 }}>Loading your fitness data...</Text>
+        <Text style={{ marginTop: 10, color: '#FFFFFF' }}>Loading your fitness data...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.statsContainer}>
-        <View style={styles.statBox}>
-          <Text variant="titleLarge">{streak}</Text>
-          <Text>Week Streak</Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
+        <Text style={styles.title}>Fitness Tracker</Text>
+        
+        <View style={styles.statusContainer}>
+          <Text style={styles.sectionTitle}>Connection Status</Text>
+          
+          <View style={styles.statusItem}>
+            <Ionicons 
+              name={stravaConnected ? "checkmark-circle" : "close-circle"} 
+              size={20} 
+              color={getStravaStatusColor()} 
+            />
+            <Text style={[styles.statusText, { color: getStravaStatusColor() }]}>
+              {getStravaStatusText()}
+            </Text>
+          </View>
+          
+          <View style={styles.statusItem}>
+            <Ionicons 
+              name={hevyConnected ? "checkmark-circle" : "close-circle"} 
+              size={20} 
+              color={hevyConnected ? "#4CAF50" : "#FF3B30"} 
+            />
+            <Text style={[styles.statusText, { color: hevyConnected ? "#4CAF50" : "#FF3B30" }]}>
+              Hevy: {hevyConnected ? "Connected" : "Not Connected"}
+            </Text>
+          </View>
+          
+          {(!stravaConnected || !hevyConnected) && (
+            <Text style={styles.configNote}>
+              Configure API keys in src/config/api.ts
+            </Text>
+          )}
         </View>
-        <View style={styles.statBox}>
-          <Text variant="titleLarge">{restDays}</Text>
-          <Text>Rest Days</Text>
-        </View>
+        
+        <Text style={styles.sectionTitle}>Your Calendar</Text>
+        
+        <WorkoutCalendar 
+          onDayPress={handleDayPress}
+          streak={streak}
+          restDays={restDays}
+        />
+
+        <FAB
+          icon="plus"
+          style={styles.fab}
+          onPress={() => {
+            // TODO: Add workout logging modal
+          }}
+        />
       </View>
-
-      <Calendar
-        markingType="multi-dot"
-        markedDates={markedDates}
-        theme={{
-          backgroundColor: '#ffffff',
-          calendarBackground: '#ffffff',
-          textSectionTitleColor: '#b6c1cd',
-          selectedDayBackgroundColor: '#00adf5',
-          selectedDayTextColor: '#ffffff',
-          todayTextColor: '#00adf5',
-          dayTextColor: '#2d4150',
-          textDisabledColor: '#d9e1e8',
-        }}
-      />
-
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        onPress={() => {
-          // TODO: Add workout logging modal
-        }}
-      />
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000000',
+  },
+  content: {
+    padding: 20,
   },
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  statsContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    justifyContent: 'space-around',
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  statBox: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  statusContainer: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
+  },
+  statusItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-    minWidth: 100,
+    marginBottom: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  configNote: {
+    color: '#8E8E93',
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 10,
   },
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
+    backgroundColor: '#007AFF',
   },
 });
 

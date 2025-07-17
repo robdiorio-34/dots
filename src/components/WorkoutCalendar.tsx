@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
+import stravaService from '../services/stravaService';
+import hevyService from '../services/hevyService';
 
 type WorkoutType = 'running' | 'lifting' | 'soccer';
 
@@ -16,13 +18,159 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
   streak = 6, 
   restDays = 0 
 }) => {
-  // Example workout data - this will be replaced with actual data later
-  const markedDates = {
-    '2024-04-02': { selected: true, selectedColor: '#007AFF' },
-    '2024-04-03': { selected: true, selectedColor: '#007AFF' },
-    '2024-04-10': { selected: true, selectedColor: '#007AFF' },
-    '2024-04-11': { selected: true, selectedColor: '#007AFF' },
-    '2024-04-26': { selected: true, selectedColor: '#007AFF' },
+  const [markedDates, setMarkedDates] = useState<{[key: string]: any}>({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    loadWorkoutData();
+  }, []);
+
+  const loadWorkoutData = async () => {
+    setIsLoading(true);
+    try {
+      // Get current month's data
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const startDate = startOfMonth.toISOString().split('T')[0];
+      const endDate = endOfMonth.toISOString().split('T')[0];
+      
+      const allMarkedDates: {[key: string]: any} = {};
+
+      // Load Strava running data
+      try {
+        const runningDates = await stravaService.getRunningDates(startDate, endDate);
+        runningDates.forEach(date => {
+          allMarkedDates[date] = {
+            selected: true,
+            selectedColor: 'rgba(0, 122, 255, 0.3)', // Opaque blue for running
+            selectedTextColor: '#FFFFFF',
+            dotColor: '#007AFF',
+            marked: true,
+            dots: [{ color: '#007AFF', key: 'running' }],
+          };
+        });
+      } catch (error) {
+        console.error('Error loading Strava data:', error);
+      }
+
+      // Load Hevy gym data
+      try {
+        const isHevyConfigured = await hevyService.isConfigured();
+        if (isHevyConfigured) {
+          const gymDates = await hevyService.getWorkoutDates(startDate, endDate);
+          gymDates.forEach(date => {
+            if (allMarkedDates[date]) {
+              // If date already has running data, add gym dot
+              allMarkedDates[date].dots = [
+                ...(allMarkedDates[date].dots || []),
+                { color: '#FF6B35', key: 'gym' } // Hevy orange for gym
+              ];
+            } else {
+              // New date with only gym data
+              allMarkedDates[date] = {
+                selected: true,
+                selectedColor: 'rgba(255, 107, 53, 0.3)', // Opaque orange for gym
+                selectedTextColor: '#FFFFFF',
+                dotColor: '#FF6B35',
+                marked: true,
+                dots: [{ color: '#FF6B35', key: 'gym' }],
+              };
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading Hevy data:', error);
+      }
+
+      // If no data from either service, show example data
+      if (Object.keys(allMarkedDates).length === 0) {
+        setMarkedDates({
+          '2024-04-02': { selected: true, selectedColor: '#007AFF' },
+          '2024-04-03': { selected: true, selectedColor: '#007AFF' },
+          '2024-04-10': { selected: true, selectedColor: '#007AFF' },
+          '2024-04-11': { selected: true, selectedColor: '#007AFF' },
+          '2024-04-26': { selected: true, selectedColor: '#007AFF' },
+        });
+      } else {
+        setMarkedDates(allMarkedDates);
+      }
+    } catch (error) {
+      console.error('Error loading workout data:', error);
+      // Fallback to example data on error
+      setMarkedDates({
+        '2024-04-02': { selected: true, selectedColor: '#007AFF' },
+        '2024-04-03': { selected: true, selectedColor: '#007AFF' },
+        '2024-04-10': { selected: true, selectedColor: '#007AFF' },
+        '2024-04-11': { selected: true, selectedColor: '#007AFF' },
+        '2024-04-26': { selected: true, selectedColor: '#007AFF' },
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMonthChange = async (month: any) => {
+    try {
+      const startOfMonth = new Date(month.year, month.month - 1, 1);
+      const endOfMonth = new Date(month.year, month.month, 0);
+      
+      const startDate = startOfMonth.toISOString().split('T')[0];
+      const endDate = endOfMonth.toISOString().split('T')[0];
+      
+      const allMarkedDates: {[key: string]: any} = {};
+
+      // Load Strava running data for the month
+      try {
+        const runningDates = await stravaService.getRunningDates(startDate, endDate);
+        runningDates.forEach(date => {
+          allMarkedDates[date] = {
+            selected: true,
+            selectedColor: 'rgba(0, 122, 255, 0.3)', // Opaque blue for running
+            selectedTextColor: '#FFFFFF',
+            dotColor: '#007AFF',
+            marked: true,
+            dots: [{ color: '#007AFF', key: 'running' }],
+          };
+        });
+      } catch (error) {
+        console.error('Error loading Strava data for month:', error);
+      }
+
+      // Load Hevy gym data for the month
+      try {
+        const isHevyConfigured = await hevyService.isConfigured();
+        if (isHevyConfigured) {
+          const gymDates = await hevyService.getWorkoutDates(startDate, endDate);
+          gymDates.forEach(date => {
+            if (allMarkedDates[date]) {
+              // If date already has running data, add gym dot
+              allMarkedDates[date].dots = [
+                ...(allMarkedDates[date].dots || []),
+                { color: '#FF6B35', key: 'gym' } // Hevy orange for gym
+              ];
+            } else {
+              // New date with only gym data
+              allMarkedDates[date] = {
+                selected: true,
+                selectedColor: 'rgba(255, 107, 53, 0.3)', // Opaque orange for gym
+                selectedTextColor: '#FFFFFF',
+                dotColor: '#FF6B35',
+                marked: true,
+                dots: [{ color: '#FF6B35', key: 'gym' }],
+              };
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading Hevy data for month:', error);
+      }
+
+      setMarkedDates(allMarkedDates);
+    } catch (error) {
+      console.error('Error loading month data:', error);
+    }
   };
 
   return (
@@ -43,14 +191,29 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
           </View>
         </View>
       </View>
+      
+      {/* Legend */}
+      <View style={styles.legendContainer}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: '#007AFF' }]} />
+          <Text style={styles.legendText}>Running (Strava)</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, { backgroundColor: '#FF6B35' }]} />
+          <Text style={styles.legendText}>Gym (Hevy)</Text>
+        </View>
+      </View>
+
       <Calendar
         onDayPress={(day) => onDayPress?.(day.dateString)}
+        onMonthChange={handleMonthChange}
         markedDates={markedDates}
+        markingType="multi-dot"
         theme={{
           backgroundColor: '#000000',
           calendarBackground: '#1C1C1E',
           textSectionTitleColor: '#FFFFFF',
-          selectedDayBackgroundColor: '#007AFF',
+          selectedDayBackgroundColor: 'rgba(0, 122, 255, 0.3)', // Default to blue
           selectedDayTextColor: '#FFFFFF',
           todayTextColor: '#007AFF',
           dayTextColor: '#FFFFFF',
@@ -104,6 +267,28 @@ const styles = StyleSheet.create({
   statLabel: {
     color: '#8E8E93',
     fontSize: 14,
+  },
+  legendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#2C2C2E',
+    marginBottom: 10,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  legendText: {
+    color: '#FFFFFF',
+    fontSize: 12,
   },
 });
 

@@ -2,3 +2,5 @@
 .expo/**/index.js
 node_modules/**/index.js
 node_modules
+.expo/
+.vscode/
