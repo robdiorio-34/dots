@@ -103,12 +103,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
     padding: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   text: {
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 20,
     color: '#FFFFFF',
+    textAlign: 'center',
   },
   button: {
     backgroundColor: '#007AFF',
