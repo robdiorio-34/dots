@@ -10,7 +10,7 @@ const STRAVA_CLIENT_SECRET = API_CONFIG.STRAVA.CLIENT_SECRET;
 // Cache constants
 const STRAVA_CACHE_KEY = 'strava_activities_cache';
 const STRAVA_CACHE_EXPIRY_KEY = 'strava_activities_cache_expiry';
-const STRAVA_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const STRAVA_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days instead of 24 hours
 
 export interface StravaActivity {
   id: number;
@@ -47,8 +47,8 @@ export interface StravaActivity {
 }
 
 class StravaService {
-  private accessToken: string = STRAVA_ACCESS_TOKEN;
-  private refreshToken: string = STRAVA_REFRESH_TOKEN;
+  private accessToken: string = ''; // Don't use hardcoded token
+  private refreshToken: string = ''; // Don't use hardcoded token
   private cachedActivities: StravaActivity[] | null = null;
   private cacheExpiry: number | null = null;
 
@@ -145,17 +145,21 @@ class StravaService {
   // Updated: Always load tokens from storage before using
   private async getValidAccessToken(): Promise<string> {
     await this.loadTokensFromStorage();
+    
+    // Check if we have tokens from OAuth
+    if (!this.accessToken || !this.refreshToken) {
+      throw new Error('No OAuth tokens available. Please authenticate with Strava first.');
+    }
+    
     // Check if token is expired (expiresAt is in ms)
     const now = Date.now();
-    if (this.accessToken && this.cacheExpiry && now < this.cacheExpiry) {
-      console.log('[Strava] Using valid access token from storage:', this.accessToken);
+    if (this.cacheExpiry && now < this.cacheExpiry) {
+      console.log('[Strava] Using valid access token from OAuth:', this.accessToken.substring(0, 10) + '...');
       return this.accessToken;
     }
-    if (!this.refreshToken) {
-      throw new Error('No refresh token available for Strava');
-    }
+    
     try {
-      console.log('[Strava] Refreshing access token using refresh_token...');
+      console.log('[Strava] Refreshing access token using OAuth refresh_token...');
       const response = await axios.post('https://www.strava.com/oauth/token', {
         client_id: STRAVA_CLIENT_ID,
         client_secret: STRAVA_CLIENT_SECRET,
@@ -164,7 +168,7 @@ class StravaService {
       });
       const { access_token, refresh_token, expires_at } = response.data;
       await this.saveTokensToStorage(access_token, refresh_token, expires_at);
-      console.log('[Strava] Received new access token:', access_token);
+      console.log('[Strava] Received new access token from OAuth:', access_token.substring(0, 10) + '...');
       return access_token;
     } catch (error) {
       console.error('[Strava] Error refreshing access token:', error);
@@ -183,9 +187,13 @@ class StravaService {
       });
     }
 
-    // Convert to UNIX seconds (integer)
-    const after = Math.floor(new Date(startDate).getTime() / 1000);
-    const before = Math.floor(new Date(endDate).getTime() / 1000);
+    // Fetch activities from the last 6 months to get a good cache
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const after = Math.floor(sixMonthsAgo.getTime() / 1000);
+    const before = Math.floor(new Date().getTime() / 1000);
+
+    console.log('[Strava] Fetching activities from last 6 months (after:', new Date(after * 1000).toISOString(), ')');
 
     // Use the latest access token from storage or refresh if needed
     const accessToken = await this.getValidAccessToken();
@@ -198,7 +206,7 @@ class StravaService {
       params: {
         after,
         before,
-        per_page: 50,
+        per_page: 200, // Increased to get more activities
       },
     };
     console.log('[Strava] Request config:', JSON.stringify(requestConfig, null, 2));
@@ -207,12 +215,27 @@ class StravaService {
       console.log('[Strava] Fetching activities from API...');
       const response = await axios(requestConfig);
       console.log('[Strava] API response status:', response.status, '| Activities fetched:', response.data.length);
-      const activities = response.data.filter((activity: StravaActivity) => 
-        activity.type.toLowerCase() === 'run'
-      );
+      
+      // Save all activities to cache
       await this.saveCache(response.data);
+      
+      // Filter for running activities in the requested date range
+      const activities = response.data.filter((activity: StravaActivity) => {
+        const date = new Date(activity.start_date_local);
+        const isInRange = date >= new Date(startDate) && date <= new Date(endDate);
+        const isRunning = activity.type.toLowerCase() === 'run';
+        return isInRange && isRunning;
+      });
+      
+      console.log('[Strava] Filtered to', activities.length, 'running activities in date range');
       return activities;
     } catch (error: any) {
+      // Check for scope-related errors
+      if (error.response?.status === 403 && error.response?.data?.message?.includes('activity:read_permission')) {
+        console.error('[Strava] Missing activity:read_all scope. Please re-authenticate with correct permissions.');
+        throw new Error('Missing activity permissions. Please reconnect to Strava with the correct permissions.');
+      }
+      
       // If we get a 401, clear tokens and retry once
       if (error.response && error.response.status === 401) {
         await AsyncStorage.multiRemove(['strava_access_token', 'strava_expires_at']);
@@ -222,12 +245,25 @@ class StravaService {
           console.log('[Strava] Retrying activities fetch after token refresh...');
           const retryResponse = await axios(requestConfig);
           console.log('[Strava] API response status (after refresh):', retryResponse.status, '| Activities fetched:', retryResponse.data.length);
-          const activities = retryResponse.data.filter((activity: StravaActivity) => 
-            activity.type.toLowerCase() === 'run'
-          );
+          
+          // Save all activities to cache
           await this.saveCache(retryResponse.data);
+          
+          // Filter for running activities in the requested date range
+          const activities = retryResponse.data.filter((activity: StravaActivity) => {
+            const date = new Date(activity.start_date_local);
+            const isInRange = date >= new Date(startDate) && date <= new Date(endDate);
+            const isRunning = activity.type.toLowerCase() === 'run';
+            return isInRange && isRunning;
+          });
+          
+          console.log('[Strava] Filtered to', activities.length, 'running activities in date range (after refresh)');
           return activities;
-        } catch (retryError) {
+        } catch (retryError: any) {
+          if (retryError.response?.status === 403 && retryError.response?.data?.message?.includes('activity:read_permission')) {
+            console.error('[Strava] Still missing activity:read_all scope after token refresh.');
+            throw new Error('Missing activity permissions. Please reconnect to Strava with the correct permissions.');
+          }
           console.error('[Strava] Error fetching activities after refresh:', retryError);
           throw retryError;
         }
@@ -256,9 +292,89 @@ class StravaService {
     await this.clearCache();
   }
 
+  // Force refresh data (clear cache and reload)
+  async forceRefresh(): Promise<void> {
+    console.log('[Strava] Force refreshing data...');
+    await this.clearCache();
+    this.cachedActivities = null;
+    this.cacheExpiry = null;
+  }
+
+  // Fetch comprehensive cache of activities (last year)
+  async fetchComprehensiveCache(): Promise<void> {
+    console.log('[Strava] Fetching comprehensive cache (last year)...');
+    
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const after = Math.floor(oneYearAgo.getTime() / 1000);
+    const before = Math.floor(new Date().getTime() / 1000);
+
+    const accessToken = await this.getValidAccessToken();
+    const requestConfig = {
+      url: 'https://www.strava.com/api/v3/athlete/activities',
+      method: 'get',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      params: {
+        after,
+        before,
+        per_page: 200,
+      },
+    };
+
+    try {
+      const response = await axios(requestConfig);
+      console.log('[Strava] Comprehensive cache: fetched', response.data.length, 'activities');
+      await this.saveCache(response.data);
+    } catch (error) {
+      console.error('[Strava] Error fetching comprehensive cache:', error);
+      throw error;
+    }
+  }
+
   // Check if cache is valid
   isCacheValid(): boolean {
     return this.cachedActivities !== null && this.cacheExpiry !== null && Date.now() < this.cacheExpiry;
+  }
+
+  // Clear all stored tokens and force re-authentication
+  async clearAllTokens(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([
+        'strava_access_token', 
+        'strava_refresh_token', 
+        'strava_expires_at',
+        STRAVA_CACHE_KEY,
+        STRAVA_CACHE_EXPIRY_KEY
+      ]);
+      this.accessToken = '';
+      this.refreshToken = '';
+      this.cachedActivities = null;
+      this.cacheExpiry = null;
+      console.log('[Strava] All tokens and cache cleared');
+    } catch (error) {
+      console.error('[Strava] Error clearing tokens:', error);
+    }
+  }
+
+  // Check if current tokens have the required scope
+  async checkTokenScope(): Promise<boolean> {
+    try {
+      const accessToken = await this.getValidAccessToken();
+      const response = await axios.get('https://www.strava.com/api/v3/athlete/activities?per_page=1', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      return true; // If we can access activities, scope is correct
+    } catch (error: any) {
+      if (error.response?.status === 403 && error.response?.data?.message?.includes('activity:read_permission')) {
+        console.log('[Strava] Token missing activity:read_all scope');
+        return false;
+      }
+      throw error;
+    }
   }
 }
 

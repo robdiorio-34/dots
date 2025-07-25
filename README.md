@@ -10,18 +10,33 @@ A simple workout tracking app to monitor running, lifting, and soccer activities
 npm install
 ```
 
-2. Start the development server:
+2. **Environment Setup (Required):**
+
+   Copy `.env.example` to `.env` and fill in your API keys:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Then edit `.env` with your actual API keys:
+
+   - Get Strava API keys from: https://www.strava.com/settings/api
+   - Get Hevy API key from the Hevy app: Settings → API
+
+   **Important:** Never commit your `.env` file to version control!
+
+3. Start the development server:
 
 ```bash
 npm start
 ```
 
-3. Run on iOS:
+4. Run on iOS:
 
 - Press 'i' in the terminal after starting the dev server
 - Or run: `npm run ios`
 
-4. Run on Android:
+5. Run on Android:
 
 - Press 'a' in the terminal after starting the dev server
 - Or run: `npm run android`

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Linking } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,9 +11,7 @@ import { API_CONFIG } from '../config/api';
 WebBrowser.maybeCompleteAuthSession();
 
 const STRAVA_CLIENT_ID = API_CONFIG.STRAVA.CLIENT_ID;
-const STRAVA_REDIRECT_URI = AuthSession.makeRedirectUri({
-  scheme: 'fitness-tracker', // This should match your app.json scheme
-});
+const STRAVA_REDIRECT_URI = 'exp://localhost:8081/--/';
 
 interface StravaAuthProps {
   onAuthSuccess?: () => void;
@@ -28,19 +26,67 @@ const StravaAuth: React.FC<StravaAuthProps> = ({ onAuthSuccess, onAuthFailure })
     setIsAuthenticated(true);
   }, []);
 
+  // Handle deep link when returning from Strava app
+  useEffect(() => {
+    const handleDeepLink = (event: { url: string }) => {
+      console.log('Deep link received:', event.url);
+      if (event.url.startsWith(STRAVA_REDIRECT_URI)) {
+        const url = new URL(event.url);
+        const code = url.searchParams.get('code');
+        
+        if (code) {
+          console.log('Authorization code received from deep link, exchanging for token...');
+          exchangeCodeForToken(code);
+        } else {
+          console.error('No authorization code in deep link');
+          onAuthFailure?.('No authorization code received from Strava app');
+        }
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
   const handleStravaAuth = async () => {
     setIsLoading(true);
     
     try {
+      // Clear any existing tokens to force fresh OAuth with correct scope
+      await AsyncStorage.multiRemove([
+        'strava_access_token', 
+        'strava_refresh_token', 
+        'strava_expires_at'
+      ]);
+      
+      // Create the authorization URL
       const authUrl = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(STRAVA_REDIRECT_URI)}&approval_prompt=force&scope=read,activity:read_all`;
 
+      // Try to open Strava app first
+      const stravaAppUrl = `strava://oauth/mobile/authorize?client_id=${STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(STRAVA_REDIRECT_URI)}&approval_prompt=force&scope=read,activity:read_all`;
+      
+      console.log('Starting Strava authentication...');
+      console.log('Client ID:', STRAVA_CLIENT_ID);
+      console.log('Redirect URI:', STRAVA_REDIRECT_URI);
+      console.log('Auth URL:', authUrl);
+      console.log('Strava App URL:', stravaAppUrl);
+
+      // For now, skip Strava app and use web browser only for testing
+      console.log('Using web browser for authentication...');
       const result = await WebBrowser.openAuthSessionAsync(authUrl, STRAVA_REDIRECT_URI);
 
+      console.log('Auth result:', result.type);
+
       if (result.type === 'success' && result.url) {
+        console.log('Success URL:', result.url);
         const url = new URL(result.url);
         const code = url.searchParams.get('code');
         
         if (code) {
+          console.log('Authorization code received, exchanging for token...');
           await exchangeCodeForToken(code);
         } else {
           throw new Error('No authorization code received');

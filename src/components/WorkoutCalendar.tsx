@@ -25,8 +25,20 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
     loadWorkoutData();
   }, []);
 
+  // Add a function to refresh data
+  const refreshData = () => {
+    loadWorkoutData();
+  };
+
+  // Expose refresh function to parent
+  useEffect(() => {
+    // This will trigger when the key changes (from parent)
+    refreshData();
+  }, []);
+
   const loadWorkoutData = async () => {
     setIsLoading(true);
+    console.log('🔄 Loading workout data...');
     try {
       // Get current month's data
       const now = new Date();
@@ -36,23 +48,36 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
       const startDate = startOfMonth.toISOString().split('T')[0];
       const endDate = endOfMonth.toISOString().split('T')[0];
       
+      console.log('📅 Date range:', startDate, 'to', endDate);
+      
       const allMarkedDates: {[key: string]: any} = {};
 
       // Load Strava running data
       try {
-        const runningDates = await stravaService.getRunningDates(startDate, endDate);
-        runningDates.forEach(date => {
-          allMarkedDates[date] = {
-            selected: true,
-            selectedColor: 'rgba(0, 122, 255, 0.3)', // Opaque blue for running
-            selectedTextColor: '#FFFFFF',
-            dotColor: '#007AFF',
-            marked: true,
-            dots: [{ color: '#007AFF', key: 'running' }],
-          };
-        });
+        // Check if Strava is connected before making API calls
+        const isStravaConnected = await stravaService.checkTokenScope().catch(() => false);
+        if (isStravaConnected) {
+          console.log('Loading Strava running data...');
+          const runningDates = await stravaService.getRunningDates(startDate, endDate);
+          console.log('Strava running dates found:', runningDates.length);
+          runningDates.forEach(date => {
+            allMarkedDates[date] = {
+              selected: true,
+              selectedColor: 'rgba(0, 122, 255, 0.3)', // Opaque blue for running
+              selectedTextColor: '#FFFFFF',
+              dotColor: '#007AFF',
+              marked: true,
+              dots: [{ color: '#007AFF', key: 'running' }],
+            };
+          });
+        } else {
+          console.log('Strava not connected or no OAuth tokens available, skipping running data');
+        }
       } catch (error) {
         console.error('Error loading Strava data:', error);
+        if (error instanceof Error && error.message?.includes('No OAuth tokens available')) {
+          console.log('No OAuth tokens available for Strava, skipping running data');
+        }
       }
 
       // Load Hevy gym data
@@ -86,6 +111,7 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
 
       // If no data from either service, show example data
       if (Object.keys(allMarkedDates).length === 0) {
+        console.log('📊 No workout data found, showing example data');
         setMarkedDates({
           '2024-04-02': { selected: true, selectedColor: '#007AFF' },
           '2024-04-03': { selected: true, selectedColor: '#007AFF' },
@@ -94,6 +120,7 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
           '2024-04-26': { selected: true, selectedColor: '#007AFF' },
         });
       } else {
+        console.log('📊 Setting marked dates:', Object.keys(allMarkedDates).length, 'dates');
         setMarkedDates(allMarkedDates);
       }
     } catch (error) {
@@ -123,19 +150,30 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
 
       // Load Strava running data for the month
       try {
-        const runningDates = await stravaService.getRunningDates(startDate, endDate);
-        runningDates.forEach(date => {
-          allMarkedDates[date] = {
-            selected: true,
-            selectedColor: 'rgba(0, 122, 255, 0.3)', // Opaque blue for running
-            selectedTextColor: '#FFFFFF',
-            dotColor: '#007AFF',
-            marked: true,
-            dots: [{ color: '#007AFF', key: 'running' }],
-          };
-        });
+        // Check if Strava is connected before making API calls
+        const isStravaConnected = await stravaService.checkTokenScope().catch(() => false);
+        if (isStravaConnected) {
+          console.log('Loading Strava running data for month:', month.month, month.year);
+          const runningDates = await stravaService.getRunningDates(startDate, endDate);
+          console.log('Strava running dates found for month:', runningDates.length);
+          runningDates.forEach(date => {
+            allMarkedDates[date] = {
+              selected: true,
+              selectedColor: 'rgba(0, 122, 255, 0.3)', // Opaque blue for running
+              selectedTextColor: '#FFFFFF',
+              dotColor: '#007AFF',
+              marked: true,
+              dots: [{ color: '#007AFF', key: 'running' }],
+            };
+          });
+        } else {
+          console.log('Strava not connected or no OAuth tokens available, skipping running data for month');
+        }
       } catch (error) {
         console.error('Error loading Strava data for month:', error);
+        if (error instanceof Error && error.message?.includes('No OAuth tokens available')) {
+          console.log('No OAuth tokens available for Strava, skipping running data for month');
+        }
       }
 
       // Load Hevy gym data for the month
@@ -175,6 +213,12 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
 
   return (
     <View style={styles.container}>
+      {isLoading && (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading workout data...</Text>
+        </View>
+      )}
+      
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
           <Ionicons name="flame" size={24} color="#FF9F0A" />
@@ -238,6 +282,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     width: '100%',
+  },
+  loadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   statsContainer: {
     flexDirection: 'row',

@@ -5,15 +5,17 @@ import { Text, FAB } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { RootState } from '../store';
 import WorkoutCalendar from '../components/WorkoutCalendar';
+import StravaAuth from '../components/StravaAuth';
 import stravaService from '../services/stravaService';
 import hevyService from '../services/hevyService';
-import { API_CONFIG, hasStravaDirectAccess } from '../config/api';
+import { API_CONFIG } from '../config/api';
 
 const HomeScreen = () => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [stravaConnected, setStravaConnected] = useState(false);
   const [hevyConnected, setHevyConnected] = useState(false);
   const [stravaMethod, setStravaMethod] = useState<'direct' | 'oauth' | 'none'>('none');
+  const [calendarKey, setCalendarKey] = useState(0); // Force calendar refresh
   const workouts = useSelector((state: RootState) => state.workouts.workouts);
   const streak = useSelector((state: RootState) => state.workouts.streak);
   const restDays = useSelector((state: RootState) => state.workouts.restDays);
@@ -34,13 +36,18 @@ const HomeScreen = () => {
       
       setHevyConnected(hevyConfigured);
       
-      // Check Strava connection method
-      if (hasStravaDirectAccess()) {
-        setStravaMethod('direct');
-        setStravaConnected(true);
-      } else if (stravaConfigured) {
+      // Check Strava connection method - only use OAuth, not hardcoded tokens
+      if (stravaConfigured) {
         setStravaMethod('oauth');
-        setStravaConnected(true);
+        // Check if we have stored OAuth tokens with correct scope
+        try {
+          const hasStoredTokens = await stravaService.checkTokenScope();
+          setStravaConnected(hasStoredTokens);
+          console.log('Strava OAuth connection status:', hasStoredTokens);
+        } catch (error) {
+          console.log('No valid Strava OAuth tokens found');
+          setStravaConnected(false);
+        }
       } else {
         setStravaMethod('none');
         setStravaConnected(false);
@@ -48,6 +55,29 @@ const HomeScreen = () => {
     } catch (error) {
       console.error('Error checking connections:', error);
     }
+  };
+
+  const handleStravaAuthSuccess = async () => {
+    setStravaConnected(true);
+    setStravaMethod('oauth');
+    // Force refresh Strava cache and reload calendar data
+    try {
+      await stravaService.forceRefresh();
+      console.log('Strava cache refreshed after authentication');
+      
+      // Fetch comprehensive cache for better performance
+      await stravaService.fetchComprehensiveCache();
+      console.log('Comprehensive Strava cache fetched');
+    } catch (error) {
+      console.error('Error refreshing Strava cache:', error);
+    }
+    setCalendarKey(prevKey => prevKey + 1);
+  };
+
+  const handleStravaAuthFailure = (error: string) => {
+    console.error('Strava authentication failed:', error);
+    setStravaConnected(false);
+    setStravaMethod('oauth');
   };
 
   const handleDayPress = (date: string) => {
@@ -101,6 +131,32 @@ const HomeScreen = () => {
             </Text>
           </View>
           
+          {/* Always show StravaAuth component for testing */}
+          {stravaMethod === 'oauth' && (
+            <StravaAuth 
+              onAuthSuccess={handleStravaAuthSuccess}
+              onAuthFailure={handleStravaAuthFailure}
+            />
+          )}
+          
+          {/* Show disconnect option when connected via OAuth */}
+          {stravaMethod === 'oauth' && stravaConnected && (
+            <View style={styles.disconnectContainer}>
+              <Text style={styles.disconnectText}>
+                Connected via OAuth. Tap to disconnect and re-authenticate.
+              </Text>
+              <Text 
+                style={styles.disconnectButton}
+                onPress={async () => {
+                  await stravaService.clearAllTokens();
+                  setStravaConnected(false);
+                }}
+              >
+                Disconnect & Re-authenticate
+              </Text>
+            </View>
+          )}
+          
           <View style={styles.statusItem}>
             <Ionicons 
               name={hevyConnected ? "checkmark-circle" : "close-circle"} 
@@ -114,7 +170,12 @@ const HomeScreen = () => {
           
           {(!stravaConnected || !hevyConnected) && (
             <Text style={styles.configNote}>
-              Configure API keys in src/config/api.ts
+              {!stravaConnected && stravaMethod === 'none' ? 
+                'Configure Strava API keys in src/config/api.ts' :
+                !hevyConnected ? 
+                'Configure Hevy API key in src/config/api.ts' :
+                'Some services need configuration'
+              }
             </Text>
           )}
         </View>
@@ -122,6 +183,7 @@ const HomeScreen = () => {
         <Text style={styles.sectionTitle}>Your Calendar</Text>
         
         <WorkoutCalendar 
+          key={calendarKey} // Add key to force refresh
           onDayPress={handleDayPress}
           streak={streak}
           restDays={restDays}
@@ -193,6 +255,25 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#007AFF',
+  },
+  disconnectContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  disconnectText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+  disconnectButton: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
   },
 });
 

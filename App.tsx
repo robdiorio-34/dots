@@ -4,6 +4,7 @@ import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import WorkoutCalendar from './src/components/WorkoutCalendar';
+import StravaAuth from './src/components/StravaAuth';
 
 type RootStackParamList = {
   Test: undefined;
@@ -15,6 +16,15 @@ type TestScreenProps = NativeStackScreenProps<RootStackParamList, 'Test'>;
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function TestScreen({ navigation }: TestScreenProps) {
+  const handleStravaAuthSuccess = () => {
+    console.log('Strava authentication successful!');
+    // You can add navigation or other actions here
+  };
+
+  const handleStravaAuthFailure = (error: string) => {
+    console.error('Strava authentication failed:', error);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.text}>Test Screen working</Text>
@@ -24,6 +34,13 @@ function TestScreen({ navigation }: TestScreenProps) {
       >
         <Text style={styles.buttonText}>Go to Home Screen</Text>
       </TouchableOpacity>
+      
+      <View style={styles.stravaContainer}>
+        <StravaAuth 
+          onAuthSuccess={handleStravaAuthSuccess}
+          onAuthFailure={handleStravaAuthFailure}
+        />
+      </View>
     </View>
   );
 }
@@ -118,6 +135,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
+    marginBottom: 20,
   },
   buttonText: {
     color: 'white',
@@ -142,5 +160,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  stravaContainer: {
+    marginTop: 10,
+    width: '100%',
   },
 }); 
