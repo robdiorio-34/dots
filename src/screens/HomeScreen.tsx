@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { useSelector } from 'react-redux';
-import { Text, FAB } from 'react-native-paper';
+import { Text, FAB, Button } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { RootState } from '../store';
 import WorkoutCalendar from '../components/WorkoutCalendar';
@@ -154,6 +154,7 @@ const HomeScreen = () => {
               >
                 Disconnect & Re-authenticate
               </Text>
+              
             </View>
           )}
           
@@ -274,6 +275,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     textDecorationLine: 'underline',
+  },
+
+  cacheStatusContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cacheStatusText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+  },
+  apiUsageContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#2C2C2E',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  apiUsageText: {
+    color: '#FFFFFF',
+    fontSize: 12,
   },
 });
 

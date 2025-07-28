@@ -10,7 +10,7 @@ const STRAVA_CLIENT_SECRET = API_CONFIG.STRAVA.CLIENT_SECRET;
 // Cache constants
 const STRAVA_CACHE_KEY = 'strava_activities_cache';
 const STRAVA_CACHE_EXPIRY_KEY = 'strava_activities_cache_expiry';
-const STRAVA_CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days instead of 24 hours
+const STRAVA_CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 export interface StravaActivity {
   id: number;
@@ -51,6 +51,7 @@ class StravaService {
   private refreshToken: string = ''; // Don't use hardcoded token
   private cachedActivities: StravaActivity[] | null = null;
   private cacheExpiry: number | null = null;
+  private lastRateLimitTime: number | null = null; // Track when we last hit rate limit
 
   private async refreshAccessToken(): Promise<boolean> {
     if (!this.refreshToken) return false;
@@ -177,104 +178,29 @@ class StravaService {
   }
 
   async getRunningActivities(startDate: string, endDate: string): Promise<StravaActivity[]> {
-    // Try to load from cache first
+    // First, check if we need to extend our cache for this date range
+    await this.checkAndExtendCacheIfNeeded(startDate, endDate);
+    
+    // Now try to load from cache
     const cacheLoaded = await this.loadCache();
     if (cacheLoaded && this.cachedActivities) {
-      console.log('[Strava] Using cached activities');
+      console.log('🏃‍♂️ [Strava] ✅ USING CACHE - No API call needed for date range:', startDate, 'to', endDate);
       return this.cachedActivities.filter(activity => {
         const date = new Date(activity.start_date_local);
         return date >= new Date(startDate) && date <= new Date(endDate) && activity.type.toLowerCase() === 'run';
       });
     }
 
-    // Fetch activities from the last 6 months to get a good cache
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    const after = Math.floor(sixMonthsAgo.getTime() / 1000);
-    const before = Math.floor(new Date().getTime() / 1000);
-
-    console.log('[Strava] Fetching activities from last 6 months (after:', new Date(after * 1000).toISOString(), ')');
-
-    // Use the latest access token from storage or refresh if needed
-    const accessToken = await this.getValidAccessToken();
-    const requestConfig = {
-      url: 'https://www.strava.com/api/v3/athlete/activities',
-      method: 'get',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      params: {
-        after,
-        before,
-        per_page: 200, // Increased to get more activities
-      },
-    };
-    console.log('[Strava] Request config:', JSON.stringify(requestConfig, null, 2));
-
-    try {
-      console.log('[Strava] Fetching activities from API...');
-      const response = await axios(requestConfig);
-      console.log('[Strava] API response status:', response.status, '| Activities fetched:', response.data.length);
-      
-      // Save all activities to cache
-      await this.saveCache(response.data);
-      
-      // Filter for running activities in the requested date range
-      const activities = response.data.filter((activity: StravaActivity) => {
-        const date = new Date(activity.start_date_local);
-        const isInRange = date >= new Date(startDate) && date <= new Date(endDate);
-        const isRunning = activity.type.toLowerCase() === 'run';
-        return isInRange && isRunning;
-      });
-      
-      console.log('[Strava] Filtered to', activities.length, 'running activities in date range');
-      return activities;
-    } catch (error: any) {
-      // Check for scope-related errors
-      if (error.response?.status === 403 && error.response?.data?.message?.includes('activity:read_permission')) {
-        console.error('[Strava] Missing activity:read_all scope. Please re-authenticate with correct permissions.');
-        throw new Error('Missing activity permissions. Please reconnect to Strava with the correct permissions.');
-      }
-      
-      // If we get a 401, clear tokens and retry once
-      if (error.response && error.response.status === 401) {
-        await AsyncStorage.multiRemove(['strava_access_token', 'strava_expires_at']);
-        try {
-          const retryToken = await this.getValidAccessToken();
-          requestConfig.headers['Authorization'] = `Bearer ${retryToken}`;
-          console.log('[Strava] Retrying activities fetch after token refresh...');
-          const retryResponse = await axios(requestConfig);
-          console.log('[Strava] API response status (after refresh):', retryResponse.status, '| Activities fetched:', retryResponse.data.length);
-          
-          // Save all activities to cache
-          await this.saveCache(retryResponse.data);
-          
-          // Filter for running activities in the requested date range
-          const activities = retryResponse.data.filter((activity: StravaActivity) => {
-            const date = new Date(activity.start_date_local);
-            const isInRange = date >= new Date(startDate) && date <= new Date(endDate);
-            const isRunning = activity.type.toLowerCase() === 'run';
-            return isInRange && isRunning;
-          });
-          
-          console.log('[Strava] Filtered to', activities.length, 'running activities in date range (after refresh)');
-          return activities;
-        } catch (retryError: any) {
-          if (retryError.response?.status === 403 && retryError.response?.data?.message?.includes('activity:read_permission')) {
-            console.error('[Strava] Still missing activity:read_all scope after token refresh.');
-            throw new Error('Missing activity permissions. Please reconnect to Strava with the correct permissions.');
-          }
-          console.error('[Strava] Error fetching activities after refresh:', retryError);
-          throw retryError;
-        }
-      }
-      console.error('[Strava] Error fetching activities:', error);
-      throw error;
-    }
+    // Fallback: return empty array if still no cache
+    console.log('[Strava] No activities found in cache');
+    return [];
   }
 
   async getRunningDates(startDate: string, endDate: string): Promise<string[]> {
     try {
+      // First, check if we need to extend our cache for this date range
+      await this.checkAndExtendCacheIfNeeded(startDate, endDate);
+      
       const activities = await this.getRunningActivities(startDate, endDate);
       const runningDates = activities.map(activity => {
         const date = new Date(activity.start_date_local);
@@ -300,13 +226,13 @@ class StravaService {
     this.cacheExpiry = null;
   }
 
-  // Fetch comprehensive cache of activities (last year)
+  // Fetch comprehensive cache of activities (last 6 months)
   async fetchComprehensiveCache(): Promise<void> {
-    console.log('[Strava] Fetching comprehensive cache (last year)...');
+    console.log('🏃‍♂️ [Strava] 🔄 MAKING API CALL - Fetching most recent 6 months of data...');
     
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    const after = Math.floor(oneYearAgo.getTime() / 1000);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const after = Math.floor(sixMonthsAgo.getTime() / 1000);
     const before = Math.floor(new Date().getTime() / 1000);
 
     const accessToken = await this.getValidAccessToken();
@@ -325,10 +251,96 @@ class StravaService {
 
     try {
       const response = await axios(requestConfig);
-      console.log('[Strava] Comprehensive cache: fetched', response.data.length, 'activities');
+      console.log('[Strava] Initial cache: fetched', response.data.length, 'activities');
       await this.saveCache(response.data);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response?.status === 429) {
+        console.error('[Strava] Rate limit exceeded during comprehensive cache fetch.');
+        throw new Error('Strava API rate limit exceeded. Please wait 15 minutes before trying again.');
+      }
       console.error('[Strava] Error fetching comprehensive cache:', error);
+      throw error;
+    }
+  }
+
+  // Check if we need to fetch more data for a specific date range
+  async checkAndExtendCacheIfNeeded(startDate: string, endDate: string): Promise<void> {
+    const cacheLoaded = await this.loadCache();
+    if (!cacheLoaded || !this.cachedActivities) {
+      console.log('[Strava] No cache available, fetching comprehensive data...');
+      await this.fetchComprehensiveCache();
+      return;
+    }
+
+    // Check if the requested date range is within our cached data
+    const requestedStart = new Date(startDate);
+    const requestedEnd = new Date(endDate);
+    
+    // Find the earliest and latest dates in our cache
+    const cachedDates = this.cachedActivities.map(activity => new Date(activity.start_date_local));
+    const earliestCached = new Date(Math.min(...cachedDates.map(d => d.getTime())));
+    const latestCached = new Date(Math.max(...cachedDates.map(d => d.getTime())));
+
+    console.log('[Strava] Cache range:', earliestCached.toISOString(), 'to', latestCached.toISOString());
+    console.log('[Strava] Requested range:', requestedStart.toISOString(), 'to', requestedEnd.toISOString());
+
+    // If requested range is within cached range, we're good
+    if (requestedStart >= earliestCached && requestedEnd <= latestCached) {
+      console.log('[Strava] Requested range is within cached data, no API call needed');
+      return;
+    }
+
+    // If we need more data, fetch 6 months from the earliest cached date
+    console.log('[Strava] Requested range extends beyond cache, fetching 6 months from earliest cached date...');
+    await this.extendCacheFromEarliestDate(earliestCached);
+  }
+
+  // Extend cache by fetching 6 months of data from the earliest cached date
+  async extendCacheFromEarliestDate(earliestCached: Date): Promise<void> {
+    console.log('🏃‍♂️ [Strava] 🔄 MAKING API CALL - Extending cache by 6 months from:', earliestCached.toISOString());
+    
+    // Calculate 6 months before the earliest cached date
+    const sixMonthsBeforeEarliest = new Date(earliestCached);
+    sixMonthsBeforeEarliest.setMonth(sixMonthsBeforeEarliest.getMonth() - 6);
+    
+    const after = Math.floor(sixMonthsBeforeEarliest.getTime() / 1000);
+    const before = Math.floor(earliestCached.getTime() / 1000);
+
+    const accessToken = await this.getValidAccessToken();
+    const requestConfig = {
+      url: 'https://www.strava.com/api/v3/athlete/activities',
+      method: 'get',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      params: {
+        after,
+        before,
+        per_page: 200,
+      },
+    };
+
+    try {
+      const response = await axios(requestConfig);
+      console.log('[Strava] Extended cache: fetched', response.data.length, 'additional activities');
+      
+      // Merge new data with existing cache
+      const existingActivities = this.cachedActivities || [];
+      const allActivities = [...response.data, ...existingActivities];
+      
+      // Remove duplicates based on activity ID
+      const uniqueActivities = allActivities.filter((activity, index, self) => 
+        index === self.findIndex(a => a.id === activity.id)
+      );
+      
+      await this.saveCache(uniqueActivities);
+      console.log('[Strava] Cache extended with', uniqueActivities.length, 'total activities');
+    } catch (error: any) {
+      if (error.response?.status === 429) {
+        console.error('[Strava] Rate limit exceeded during cache extension.');
+        throw new Error('Strava API rate limit exceeded. Please wait 15 minutes before trying again.');
+      }
+      console.error('[Strava] Error extending cache:', error);
       throw error;
     }
   }
@@ -369,12 +381,84 @@ class StravaService {
       });
       return true; // If we can access activities, scope is correct
     } catch (error: any) {
+      if (error.response?.status === 429) {
+        console.error('[Strava] Rate limit exceeded during scope check.');
+        this.lastRateLimitTime = Date.now();
+        console.log(`[Strava] Rate limit hit at: ${new Date(this.lastRateLimitTime).toLocaleString()}`);
+        throw new Error('Strava API rate limit exceeded. Please wait 15 minutes before trying again.');
+      }
       if (error.response?.status === 403 && error.response?.data?.message?.includes('activity:read_permission')) {
         console.log('[Strava] Token missing activity:read_all scope');
         return false;
       }
       throw error;
     }
+  }
+
+  // Check current API usage and rate limits
+  async checkApiUsage(): Promise<{ usage: number; limit: number; lastRateLimitTime: number | null } | null> {
+    try {
+      const accessToken = await this.getValidAccessToken();
+      const response = await axios.get('https://www.strava.com/api/v3/athlete', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      
+      // Strava includes rate limit info in response headers
+      // Use read rate limit headers since we're making read requests
+      const usageStr = response.headers['x-readratelimit-usage'] || '0';
+      const limitStr = response.headers['x-readratelimit-limit'] || '1000';
+      
+      // Parse comma-separated values (take the first value)
+      const usage = parseInt(usageStr.split(',')[0]) || 0;
+      const limit = parseInt(limitStr.split(',')[0]) || 1000;
+      
+      console.log(`[Strava] API Usage: ${usage}/${limit} requests`);
+      
+      return { usage, limit, lastRateLimitTime: this.lastRateLimitTime };
+    } catch (error: any) {
+      if (error.response?.status === 429) {
+        console.error('[Strava] Rate limit exceeded during usage check.');
+        this.lastRateLimitTime = Date.now();
+        console.log(`[Strava] Rate limit hit at: ${new Date(this.lastRateLimitTime).toLocaleString()}`);
+        return null;
+      }
+      console.error('[Strava] Error checking API usage:', error);
+      return null;
+    }
+  }
+
+  // Get cache status information
+  async getCacheStatus(): Promise<{
+    hasCache: boolean;
+    cacheSize: number;
+    cacheRange: { earliest: string; latest: string } | null;
+    cacheExpiry: string | null;
+  }> {
+    const cacheLoaded = await this.loadCache();
+    if (!cacheLoaded || !this.cachedActivities) {
+      return {
+        hasCache: false,
+        cacheSize: 0,
+        cacheRange: null,
+        cacheExpiry: null,
+      };
+    }
+
+    const cachedDates = this.cachedActivities.map(activity => new Date(activity.start_date_local));
+    const earliestCached = new Date(Math.min(...cachedDates.map(d => d.getTime())));
+    const latestCached = new Date(Math.max(...cachedDates.map(d => d.getTime())));
+
+    return {
+      hasCache: true,
+      cacheSize: this.cachedActivities.length,
+      cacheRange: {
+        earliest: earliestCached.toISOString(),
+        latest: latestCached.toISOString(),
+      },
+      cacheExpiry: this.cacheExpiry ? new Date(this.cacheExpiry).toISOString() : null,
+    };
   }
 }
 

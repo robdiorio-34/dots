@@ -5,13 +5,16 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import WorkoutCalendar from './src/components/WorkoutCalendar';
 import StravaAuth from './src/components/StravaAuth';
+import AnalyticsScreen from './src/screens/AnalyticsScreen';
 
 type RootStackParamList = {
   Test: undefined;
   Home: undefined;
+  Analytics: undefined;
 };
 
 type TestScreenProps = NativeStackScreenProps<RootStackParamList, 'Test'>;
+type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -45,7 +48,7 @@ function TestScreen({ navigation }: TestScreenProps) {
   );
 }
 
-function HomeScreen() {
+function HomeScreen({ navigation }: HomeScreenProps) {
   const [selectedDate, setSelectedDate] = useState<string>('');
 
   const handleDayPress = (date: string) => {
@@ -69,6 +72,16 @@ function HomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity style={[styles.workoutButton, { backgroundColor: '#2C2C2E' }]}>
             <Text style={styles.workoutButtonText}>Soccer</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Analytics Button */}
+        <View style={styles.analyticsButtonContainer}>
+          <TouchableOpacity 
+            style={styles.analyticsButton}
+            onPress={() => navigation.navigate('Analytics')}
+          >
+            <Text style={styles.analyticsButtonText}>Analytics</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -103,6 +116,14 @@ export default function App() {
           component={HomeScreen}
           options={{
             title: 'Calendar',
+            headerShadowVisible: false,
+          }}
+        />
+        <Stack.Screen 
+          name="Analytics" 
+          component={AnalyticsScreen}
+          options={{
+            title: 'Analytics',
             headerShadowVisible: false,
           }}
         />
@@ -157,6 +178,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   workoutButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  analyticsButtonContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#000000',
+  },
+  analyticsButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    minWidth: 120,
+  },
+  analyticsButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',

@@ -77,6 +77,9 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
         console.error('Error loading Strava data:', error);
         if (error instanceof Error && error.message?.includes('No OAuth tokens available')) {
           console.log('No OAuth tokens available for Strava, skipping running data');
+        } else if (error instanceof Error && error.message?.includes('rate limit exceeded')) {
+          console.log('Strava API rate limit exceeded, using cached data if available');
+          // Could show a user-friendly message here
         }
       }
 
@@ -85,13 +88,22 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
         const isHevyConfigured = await hevyService.isConfigured();
         if (isHevyConfigured) {
           const gymDates = await hevyService.getWorkoutDates(startDate, endDate);
+          console.log('Hevy gym dates found:', gymDates.length);
           gymDates.forEach(date => {
             if (allMarkedDates[date]) {
-              // If date already has running data, add gym dot
-              allMarkedDates[date].dots = [
-                ...(allMarkedDates[date].dots || []),
-                { color: '#FF6B35', key: 'gym' } // Hevy orange for gym
-              ];
+              // If date already has running data, create a special marking for both activities
+              console.log('Found day with both activities:', date);
+              allMarkedDates[date] = {
+                selected: true,
+                selectedColor: 'rgba(255, 107, 53, 0.4)', // Slightly more opaque orange background
+                selectedTextColor: '#FFFFFF',
+                dotColor: '#FF6B35',
+                marked: true,
+                dots: [
+                  { color: '#007AFF', key: 'running' }, // Blue dot for running
+                  { color: '#FF6B35', key: 'gym' }      // Orange dot for gym
+                ],
+              };
             } else {
               // New date with only gym data
               allMarkedDates[date] = {
@@ -173,6 +185,9 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
         console.error('Error loading Strava data for month:', error);
         if (error instanceof Error && error.message?.includes('No OAuth tokens available')) {
           console.log('No OAuth tokens available for Strava, skipping running data for month');
+        } else if (error instanceof Error && error.message?.includes('rate limit exceeded')) {
+          console.log('Strava API rate limit exceeded, using cached data if available for month');
+          // Could show a user-friendly message here
         }
       }
 
@@ -183,11 +198,19 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
           const gymDates = await hevyService.getWorkoutDates(startDate, endDate);
           gymDates.forEach(date => {
             if (allMarkedDates[date]) {
-              // If date already has running data, add gym dot
-              allMarkedDates[date].dots = [
-                ...(allMarkedDates[date].dots || []),
-                { color: '#FF6B35', key: 'gym' } // Hevy orange for gym
-              ];
+              // If date already has running data, create a special marking for both activities
+              console.log('Found day with both activities:', date);
+              allMarkedDates[date] = {
+                selected: true,
+                selectedColor: 'rgba(255, 107, 53, 0.4)', // Slightly more opaque orange background
+                selectedTextColor: '#FFFFFF',
+                dotColor: '#FF6B35',
+                marked: true,
+                dots: [
+                  { color: '#007AFF', key: 'running' }, // Blue dot for running
+                  { color: '#FF6B35', key: 'gym' }      // Orange dot for gym
+                ],
+              };
             } else {
               // New date with only gym data
               allMarkedDates[date] = {
