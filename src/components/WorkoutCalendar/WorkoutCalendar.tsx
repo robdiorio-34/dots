@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
-import stravaService from '../services/stravaService';
-import hevyService from '../services/hevyService';
-
-type WorkoutType = 'running' | 'lifting' | 'soccer';
+import stravaService from '../../services/stravaService';
+import hevyService from '../../services/hevyService';
+import { styles } from './styles';
+import { theme } from '../../styles/theme';
 
 interface WorkoutCalendarProps {
   onDayPress?: (date: string) => void;
@@ -63,11 +63,11 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
           runningDates.forEach(date => {
             allMarkedDates[date] = {
               selected: true,
-              selectedColor: 'rgba(0, 122, 255, 0.3)', // Opaque blue for running
-              selectedTextColor: '#FFFFFF',
-              dotColor: '#007AFF',
+              selectedColor: theme.colors.selectedBlue,
+              selectedTextColor: theme.colors.text,
+              dotColor: theme.colors.primary,
               marked: true,
-              dots: [{ color: '#007AFF', key: 'running' }],
+              dots: [{ color: theme.colors.primary, key: 'running' }],
             };
           });
         } else {
@@ -95,24 +95,24 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
               console.log('Found day with both activities:', date);
               allMarkedDates[date] = {
                 selected: true,
-                selectedColor: 'rgba(255, 107, 53, 0.4)', // Slightly more opaque orange background
-                selectedTextColor: '#FFFFFF',
-                dotColor: '#FF6B35',
+                selectedColor: theme.colors.selectedOrangeOpaque,
+                selectedTextColor: theme.colors.text,
+                dotColor: theme.colors.warning,
                 marked: true,
                 dots: [
-                  { color: '#007AFF', key: 'running' }, // Blue dot for running
-                  { color: '#FF6B35', key: 'gym' }      // Orange dot for gym
+                  { color: theme.colors.primary, key: 'running' }, // Blue dot for running
+                  { color: theme.colors.warning, key: 'gym' }      // Orange dot for gym
                 ],
               };
             } else {
               // New date with only gym data
               allMarkedDates[date] = {
                 selected: true,
-                selectedColor: 'rgba(255, 107, 53, 0.3)', // Opaque orange for gym
-                selectedTextColor: '#FFFFFF',
-                dotColor: '#FF6B35',
+                selectedColor: theme.colors.selectedOrange,
+                selectedTextColor: theme.colors.text,
+                dotColor: theme.colors.warning,
                 marked: true,
-                dots: [{ color: '#FF6B35', key: 'gym' }],
+                dots: [{ color: theme.colors.warning, key: 'gym' }],
               };
             }
           });
@@ -125,11 +125,11 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
       if (Object.keys(allMarkedDates).length === 0) {
         console.log('📊 No workout data found, showing example data');
         setMarkedDates({
-          '2024-04-02': { selected: true, selectedColor: '#007AFF' },
-          '2024-04-03': { selected: true, selectedColor: '#007AFF' },
-          '2024-04-10': { selected: true, selectedColor: '#007AFF' },
-          '2024-04-11': { selected: true, selectedColor: '#007AFF' },
-          '2024-04-26': { selected: true, selectedColor: '#007AFF' },
+          '2024-04-02': { selected: true, selectedColor: theme.colors.primary },
+          '2024-04-03': { selected: true, selectedColor: theme.colors.primary },
+          '2024-04-10': { selected: true, selectedColor: theme.colors.primary },
+          '2024-04-11': { selected: true, selectedColor: theme.colors.primary },
+          '2024-04-26': { selected: true, selectedColor: theme.colors.primary },
         });
       } else {
         console.log('📊 Setting marked dates:', Object.keys(allMarkedDates).length, 'dates');
@@ -139,11 +139,11 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
       console.error('Error loading workout data:', error);
       // Fallback to example data on error
       setMarkedDates({
-        '2024-04-02': { selected: true, selectedColor: '#007AFF' },
-        '2024-04-03': { selected: true, selectedColor: '#007AFF' },
-        '2024-04-10': { selected: true, selectedColor: '#007AFF' },
-        '2024-04-11': { selected: true, selectedColor: '#007AFF' },
-        '2024-04-26': { selected: true, selectedColor: '#007AFF' },
+        '2024-04-02': { selected: true, selectedColor: theme.colors.primary },
+        '2024-04-03': { selected: true, selectedColor: theme.colors.primary },
+        '2024-04-10': { selected: true, selectedColor: theme.colors.primary },
+        '2024-04-11': { selected: true, selectedColor: theme.colors.primary },
+        '2024-04-26': { selected: true, selectedColor: theme.colors.primary },
       });
     } finally {
       setIsLoading(false);
@@ -171,11 +171,11 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
           runningDates.forEach(date => {
             allMarkedDates[date] = {
               selected: true,
-              selectedColor: 'rgba(0, 122, 255, 0.3)', // Opaque blue for running
-              selectedTextColor: '#FFFFFF',
-              dotColor: '#007AFF',
+              selectedColor: theme.colors.selectedBlue,
+              selectedTextColor: theme.colors.text,
+              dotColor: theme.colors.primary,
               marked: true,
-              dots: [{ color: '#007AFF', key: 'running' }],
+              dots: [{ color: theme.colors.primary, key: 'running' }],
             };
           });
         } else {
@@ -202,24 +202,24 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
               console.log('Found day with both activities:', date);
               allMarkedDates[date] = {
                 selected: true,
-                selectedColor: 'rgba(255, 107, 53, 0.4)', // Slightly more opaque orange background
-                selectedTextColor: '#FFFFFF',
-                dotColor: '#FF6B35',
+                selectedColor: theme.colors.selectedOrangeOpaque,
+                selectedTextColor: theme.colors.text,
+                dotColor: theme.colors.warning,
                 marked: true,
                 dots: [
-                  { color: '#007AFF', key: 'running' }, // Blue dot for running
-                  { color: '#FF6B35', key: 'gym' }      // Orange dot for gym
+                  { color: theme.colors.primary, key: 'running' }, // Blue dot for running
+                  { color: theme.colors.warning, key: 'gym' }      // Orange dot for gym
                 ],
               };
             } else {
               // New date with only gym data
               allMarkedDates[date] = {
                 selected: true,
-                selectedColor: 'rgba(255, 107, 53, 0.3)', // Opaque orange for gym
-                selectedTextColor: '#FFFFFF',
-                dotColor: '#FF6B35',
+                selectedColor: theme.colors.selectedOrange,
+                selectedTextColor: theme.colors.text,
+                dotColor: theme.colors.warning,
                 marked: true,
-                dots: [{ color: '#FF6B35', key: 'gym' }],
+                dots: [{ color: theme.colors.warning, key: 'gym' }],
               };
             }
           });
@@ -244,14 +244,14 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
       
       <View style={styles.statsContainer}>
         <View style={styles.statBox}>
-          <Ionicons name="flame" size={24} color="#FF9F0A" />
+          <Ionicons name="flame" size={24} color={theme.colors.warning} />
           <View style={styles.statTextContainer}>
             <Text style={styles.statValue}>{streak} weeks</Text>
             <Text style={styles.statLabel}>Streak</Text>
           </View>
         </View>
         <View style={styles.statBox}>
-          <Ionicons name="moon" size={24} color="#007AFF" />
+          <Ionicons name="moon" size={24} color={theme.colors.primary} />
           <View style={styles.statTextContainer}>
             <Text style={styles.statValue}>{restDays} days</Text>
             <Text style={styles.statLabel}>Rest</Text>
@@ -262,11 +262,11 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
       {/* Legend */}
       <View style={styles.legendContainer}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#007AFF' }]} />
+          <View style={[styles.legendDot, { backgroundColor: theme.colors.primary }]} />
           <Text style={styles.legendText}>Running (Strava)</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#FF6B35' }]} />
+          <View style={[styles.legendDot, { backgroundColor: theme.colors.warning }]} />
           <Text style={styles.legendText}>Gym (Hevy)</Text>
         </View>
       </View>
@@ -276,103 +276,10 @@ const WorkoutCalendar: React.FC<WorkoutCalendarProps> = ({
         onMonthChange={handleMonthChange}
         markedDates={markedDates}
         markingType="multi-dot"
-        theme={{
-          backgroundColor: '#000000',
-          calendarBackground: '#1C1C1E',
-          textSectionTitleColor: '#FFFFFF',
-          selectedDayBackgroundColor: 'rgba(0, 122, 255, 0.3)', // Default to blue
-          selectedDayTextColor: '#FFFFFF',
-          todayTextColor: '#007AFF',
-          dayTextColor: '#FFFFFF',
-          textDisabledColor: '#4D4D4D',
-          dotColor: '#007AFF',
-          selectedDotColor: '#FFFFFF',
-          arrowColor: '#FFFFFF',
-          monthTextColor: '#FFFFFF',
-          textMonthFontWeight: 'bold',
-          textDayFontSize: 16,
-          textMonthFontSize: 16,
-          textDayHeaderFontSize: 14,
-        }}
+        theme={theme.calendar}
       />
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#1C1C1E',
-    borderRadius: 10,
-    overflow: 'hidden',
-    width: '100%',
-  },
-  loadingContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  loadingText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    backgroundColor: '#2C2C2E',
-    marginBottom: 10,
-  },
-  statBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2C2C2E',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    minWidth: 150,
-  },
-  statTextContainer: {
-    marginLeft: 10,
-  },
-  statValue: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  statLabel: {
-    color: '#8E8E93',
-    fontSize: 14,
-  },
-  legendContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: '#2C2C2E',
-    marginBottom: 10,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  legendText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-  },
-});
 
 export default WorkoutCalendar; 
