@@ -1,0 +1,47 @@
+---
+description: API configuration and environment setup
+---
+
+# API Configuration Guide
+
+## Environment Variables
+
+The app uses [react-native-dotenv](mdc:babel.config.js) to load environment variables from `.env` file.
+
+Required variables:
+
+- `STRAVA_CLIENT_ID` - Strava API client ID
+- `STRAVA_CLIENT_SECRET` - Strava API client secret
+- `STRAVA_ACCESS_TOKEN` - Optional direct access token
+- `STRAVA_REFRESH_TOKEN` - Optional refresh token
+- `HEVY_API_KEY` - Hevy API key
+
+## Configuration Files
+
+- [src/config/api.ts](mdc:src/config/api.ts) - Main API configuration
+- [src/config/api.template.ts](mdc:src/config/api.template.ts) - Template file (never commit real keys)
+
+## OAuth Flow
+
+The app implements full Strava OAuth flow:
+
+1. User taps "Connect to Strava"
+2. Opens Strava authorization page
+3. User authorizes app
+4. Exchanges code for access/refresh tokens
+5. Stores tokens in AsyncStorage
+6. Uses tokens for API calls
+
+## API Services
+
+- **StravaService**: Handles OAuth, token refresh, caching, and rate limiting
+- **HevyService**: Direct API integration with caching
+- Both services check configuration before making API calls
+
+## Service Architecture
+
+- Each service should be a dedicated class with single responsibility
+- Services should be testable and reusable
+- Use dependency injection for configuration
+- Implement proper error handling and logging
+- Cache responses appropriately to reduce API calls

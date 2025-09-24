@@ -1,0 +1,37 @@
+---
+alwaysApply: true
+description: Fitness Tracker App Structure and Architecture
+---
+
+# Fitness Tracker App Structure
+
+This is a React Native/Expo fitness tracking app that integrates with Strava and Hevy APIs.
+
+## Core Architecture
+
+- **Entry Point**: [App.tsx](mdc:App.tsx) - Main navigation setup with 3 screens
+- **Configuration**: [src/config/api.ts](mdc:src/config/api.ts) - API keys and configuration
+- **Environment**: Uses `.env` file for API keys (hidden from git)
+- **Theme**: [src/styles/theme.ts](mdc:src/styles/theme.ts) - Dark theme with iOS-style design
+
+## Key Components
+
+- **WorkoutCalendar**: [src/components/WorkoutCalendar/WorkoutCalendar.tsx](mdc:src/components/WorkoutCalendar/WorkoutCalendar.tsx) - Smart calendar with Strava/Hevy integration
+- **StravaAuth**: [src/components/StravaAuth/StravaAuth.tsx](mdc:src/components/StravaAuth/StravaAuth.tsx) - OAuth authentication component
+- **HomeScreen**: [src/screens/HomeScreen/HomeScreen.tsx](mdc:src/screens/HomeScreen/HomeScreen.tsx) - Main calendar view
+
+## API Services
+
+- **StravaService**: [src/services/stravaService.ts](mdc:src/services/stravaService.ts) - Strava API with caching and rate limiting
+- **HevyService**: [src/services/hevyService.ts](mdc:src/services/hevyService.ts) - Hevy API integration
+
+## Color Coding
+
+- 🔵 **Blue dots**: Running activities (Strava)
+- 🟠 **Orange dots**: Gym workouts (Hevy)
+- 🔵🟠 **Multiple dots**: Days with both activities
+
+## Development Commands
+
+- `npm start` - Start development server
+- `npx expo start --tunnel` - Start with tunneling for device testing

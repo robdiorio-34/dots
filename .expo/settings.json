@@ -1,3 +1,10 @@
 {
-  "urlRandomness": "bm5i7aw"
+"urlRandomness": "bm5i7aw",
+  "dev": true,
+  "minify": false,
+  "https": false,
+  "scheme": null,
+  "hostType": "tunnel",
+  "lanType": "ip",
+  "devClient": false
 }

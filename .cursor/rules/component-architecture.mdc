@@ -1,0 +1,47 @@
+---
+description: Component architecture and design patterns
+---
+
+# Component Architecture Guidelines
+
+## Component Structure
+
+- Each component should have its own folder with:
+  - `ComponentName.tsx` - Main component file
+  - `styles.ts` - Component-specific styles
+  - `index.ts` - Export file (optional)
+
+## Component Responsibilities
+
+- **UI Components**: Pure presentation, no business logic
+- **Container Components**: Handle state and data fetching
+- **Service Components**: API calls and data management
+- **Utility Components**: Reusable UI elements
+
+## State Management
+
+- Use Redux Toolkit for global state: [src/store/workoutsSlice.ts](mdc:src/store/workoutsSlice.ts)
+- Use local state for component-specific data
+- Separate UI state from business state
+- Use proper TypeScript interfaces for state
+
+## Data Flow
+
+- Services handle API calls and caching
+- Components consume data through props or hooks
+- Use proper error boundaries and loading states
+- Implement proper data validation
+
+## Reusability
+
+- Design components to be reusable across the app
+- Use proper prop interfaces and default values
+- Avoid hardcoded values in components
+- Create utility functions for common operations
+
+## Testing Considerations
+
+- Components should be easily testable
+- Separate business logic from UI logic
+- Use dependency injection for services
+- Mock external dependencies in tests

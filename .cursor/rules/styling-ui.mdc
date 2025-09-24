@@ -1,0 +1,49 @@
+---
+globs: *.ts,*.tsx
+description: Styling and UI component guidelines
+---
+
+# Styling & UI Guidelines
+
+## Theme Usage
+
+Always use the centralized theme from [src/styles/theme.ts](mdc:src/styles/theme.ts):
+
+- `theme.colors.primary` - Blue (#007AFF)
+- `theme.colors.warning` - Orange (#FF9F0A)
+- `theme.colors.background` - Black (#000000)
+- `theme.colors.surface` - Dark gray (#1C1C1E)
+
+## Component Styling
+
+- Create separate `styles.ts` files for each component
+- Use StyleSheet.create() for performance
+- Follow the existing pattern in [src/components/](mdc:src/components/)
+
+## Calendar Styling
+
+- Use `theme.calendar` for react-native-calendars configuration
+- Blue dots for running (Strava)
+- Orange dots for gym (Hevy)
+- Multiple dots for combined activities
+
+## Responsive Design
+
+- Use theme spacing values (xs, sm, md, lg, xl, xxl)
+- Follow iOS design patterns
+- Use proper safe area handling
+- Test on different screen sizes
+
+## Loading States
+
+- Always show loading indicators for API calls
+- Use consistent loading text and spinners
+- Handle error states gracefully
+
+## Component Architecture
+
+- Keep UI components focused on presentation only
+- Separate styling logic from business logic
+- Use consistent naming for style objects
+- Create reusable style utilities when needed
+- Follow the single responsibility principle for styling

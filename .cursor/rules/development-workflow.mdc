@@ -1,0 +1,60 @@
+---
+description: Development workflow and troubleshooting
+---
+
+# Development Workflow
+
+## Starting the App
+
+```bash
+# Use new Expo CLI (avoid deprecated global expo-cli)
+npx expo start --tunnel
+
+# Alternative: use npm scripts
+npm start
+```
+
+## Common Issues & Solutions
+
+### Module Dependencies
+
+If you get "Cannot find module" errors:
+
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### Terminal Slowness
+
+- Kill stuck processes: `pkill -f expo`
+- Restart terminal or use VS Code integrated terminal
+- Check system resources with `top`
+
+### API Configuration
+
+- Ensure `.env` file exists with proper API keys
+- Check [src/config/api.ts](mdc:src/config/api.ts) imports
+- Verify babel configuration in [babel.config.js](mdc:babel.config.js)
+
+## Testing
+
+- Use tunnel mode for device testing
+- Scan QR code with Expo Go app
+- Test Strava OAuth flow on device
+- Verify calendar shows workout data
+
+## File Structure
+
+- Components: [src/components/](mdc:src/components/)
+- Screens: [src/screens/](mdc:src/screens/)
+- Services: [src/services/](mdc:src/services/)
+- Styles: [src/styles/](mdc:src/styles/)
+- Types: [src/types/](mdc:src/types/)
+
+## Code Organization
+
+- Keep related files in dedicated folders
+- Use index.ts files for clean imports
+- Separate concerns: UI, business logic, data access
+- Follow the established folder structure
